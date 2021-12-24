@@ -1,0 +1,6 @@
+// Add your dependencies here
+
+dependencies {
+	implementation name: "GeoStrata+1.7.10+V31a"
+	implementation name: "DragonAPI+1.7.10+V31a"
+}
