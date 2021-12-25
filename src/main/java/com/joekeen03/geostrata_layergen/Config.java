@@ -9,6 +9,7 @@ public class Config {
     
     private static class Defaults {
         public static final String greeting = "Hello World";
+        public static final Boolean retrogen = false;
     }
 
     private static class Categories {
@@ -16,13 +17,21 @@ public class Config {
     }
     
     public static String greeting = Defaults.greeting;
+    public static Boolean retrogen = Defaults.retrogen;
 
     public static void syncronizeConfiguration(File configFile) {
         Configuration configuration = new Configuration(configFile);
         configuration.load();
-        
+
         Property greetingProperty = configuration.get(Categories.general, "greeting", Defaults.greeting, "How shall I greet?");
+        Property retrogenProperty = configuration.get(Categories.general, "Retrogen", Defaults.retrogen, "Set to true if this should retrogen stone.");
         greeting = greetingProperty.getString();
+        retrogen = retrogenProperty.getBoolean();
+
+        if (retrogen)
+        {
+            retrogenProperty.set(false);
+        }
 
         if(configuration.hasChanged()) {
             configuration.save();
