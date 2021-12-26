@@ -19,7 +19,7 @@ public class CommonProxy {
 
     // load "Do your mod setup. Build whatever data structures you care about. Register recipes."
     public void init(FMLInitializationEvent event) {
-        RetroGenController.instance.addHybridGenerator(LayerGenerator.instance, 0, false);
+        RetroGenController.instance.addHybridGenerator(LayerGenerator.instance, 1000, false);
 //        GeoStrataLayerGen.info("Added hybrid generator.");
     }
 

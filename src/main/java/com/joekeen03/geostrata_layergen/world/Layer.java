@@ -1,5 +1,7 @@
 package com.joekeen03.geostrata_layergen.world;
 
+import com.joekeen03.geostrata_layergen.GeoStrataLayerGen;
+
 public class Layer {
     public final double startFraction;
     public final RockTypeBlockPair blockType;

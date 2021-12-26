@@ -14,18 +14,21 @@ import javax.annotation.Nullable;
  */
 public class RockTypeBlockPair {
     public final RockTypes type;
-    public final Block block;
+    public final Block smooth;
+    public final Block cobble;
     @Nullable
     public RockTypeBlockPair(RockTypes rockType)
     {
         this.type = rockType;
         if (rockType != null)
         {
-            block = rockType.getID(RockShapes.SMOOTH);
+            smooth = rockType.getID(RockShapes.SMOOTH);
+            cobble = rockType.getID(RockShapes.COBBLE);
         }
         else
         {
-            block = Blocks.stone;
+            smooth = Blocks.stone;
+            cobble = Blocks.cobblestone;
         }
     }
 }

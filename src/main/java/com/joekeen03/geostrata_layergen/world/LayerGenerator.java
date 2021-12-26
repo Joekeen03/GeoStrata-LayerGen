@@ -1,30 +1,39 @@
 package com.joekeen03.geostrata_layergen.world;
 
 import Reika.DragonAPI.Interfaces.RetroactiveGenerator;
+import Reika.DragonAPI.Libraries.World.ReikaWorldHelper;
 import Reika.GeoStrata.Registry.RockTypes;
+import com.google.common.primitives.Ints;
 import com.joekeen03.geostrata_layergen.GeoStrataLayerGen;
 import com.joekeen03.geostrata_layergen.Tags;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.IChunkProvider;
 import net.minecraft.world.gen.layer.*;
 
 import javax.annotation.Nullable;
-import java.util.Random;
+import java.util.*;
 
 
 public class LayerGenerator implements RetroactiveGenerator {
 
     public static final LayerGenerator instance = new LayerGenerator();
+
+    private static final int layerIDSeed = 13;
+    private static final int layerPermutationSeed = 20;
+
     public final int nRockTypes;
+    public final int maxY;
+    public final int minY;
+    public final int yRange;
 
     private final RockTypeBlockPair[] worldGenRocks;
     private GenLayer[] genLayers;
     private Int2ObjectOpenHashMap<Plate> plateCache;
     private long seed = 0;
-
-    private static final int layerIDSeed = 13;
-    private static final int layerPermutationSeed = 20;
+    private boolean logNonServer = true;
+    private final CobbleDecorator cobbler;
 
     protected LayerGenerator()
     {
@@ -38,6 +47,10 @@ public class LayerGenerator implements RetroactiveGenerator {
             worldGenRocks[i] = new RockTypeBlockPair(RockTypes.values()[i]);
         }
         worldGenRocks[i] = new RockTypeBlockPair(null);
+        cobbler = new CobbleDecorator(worldGenRocks);
+        maxY = Collections.max(Arrays.asList(RockTypes.values()), (val1, val2) -> Ints.compare(val1.maxY, val2.maxY)).maxY;
+        minY = Collections.min(Arrays.asList(RockTypes.values()), (val1, val2) -> Ints.compare(val1.minY, val2.minY)).minY;
+        yRange = maxY-minY;
         GeoStrataLayerGen.info("Created Layer Generator.");
     }
 
@@ -85,10 +98,11 @@ public class LayerGenerator implements RetroactiveGenerator {
             // Create generator layers
             seed = world.getSeed();
             GenLayer layerIDGen = new GenLayerPlateID(layerIDSeed);
+            layerIDGen = GenLayerZoom.magnify(6, layerIDGen, 6);
             layerIDGen = new GenLayerFuzzyZoom(13, layerIDGen);
             layerIDGen = new GenLayerFuzzyZoom(23, layerIDGen);
+            layerIDGen = GenLayerZoom.magnify(6, layerIDGen, 2);
             layerIDGen = new GenLayerFuzzyZoom(42, layerIDGen);
-            layerIDGen = GenLayerZoom.magnify(6, layerIDGen, 4);
             layerIDGen = new GenLayerFuzzyZoom(66, layerIDGen);
             layerIDGen = new GenLayerVoronoiZoom(5, layerIDGen);
             GenLayer permutationLayer = new GenLayerIsland(layerPermutationSeed);
@@ -98,22 +112,37 @@ public class LayerGenerator implements RetroactiveGenerator {
             plateCache = new Int2ObjectOpenHashMap<>(20);
         }
 
-        if (world != null)
+        if (world instanceof WorldServer)
         {
             int xStart = chunkX*16;
             int zStart = chunkZ*16;
             int[] layerIDs = genLayers[0].getInts(xStart, zStart, 16, 16);
+            WorldServer worldServer = (WorldServer)world;
+//            boolean neighborsExist = (ReikaWorldHelper.isChunkGeneratedChunkCoords(worldServer, chunkX+1, chunkZ)
+//                    && ReikaWorldHelper.isChunkGeneratedChunkCoords(worldServer, chunkX, chunkZ+1));
 
             for (int dx = 0; dx < 16; dx++)
             {
+                // Only cobble blocks (which requires looking up neighboring blocks) if the chunks the neighbors are
+                //  in exist; otherwise, you can get a stack overflow due to infinite recursion.
+                boolean neighborsExist = ((dx != 0) || ReikaWorldHelper.isChunkGeneratedChunkCoords(worldServer, chunkX-1, chunkZ));
+                neighborsExist = neighborsExist && ((dx != 15) || ReikaWorldHelper.isChunkGeneratedChunkCoords(worldServer,chunkX+1, chunkZ));
                 for (int dz = 0; dz < 16; dz++)
                 {
                     // TODO Lookup plate or create it anew.
+                    neighborsExist = neighborsExist && ((dz != 0) || ReikaWorldHelper.isChunkGeneratedChunkCoords(worldServer, chunkX, chunkZ-1));
+                    neighborsExist = neighborsExist && ((dz != 15) || ReikaWorldHelper.isChunkGeneratedChunkCoords(worldServer, chunkX, chunkZ+1));
                     int plateID = layerIDs[dx*16+dz];
                     Plate plate = plateCache.computeIfAbsent(plateID, id -> new Plate(id, seed));
-                    plate.Generate(world, xStart+dx, zStart+dz);
+                    plate.Generate(world, xStart+dx, zStart+dz, neighborsExist);
                 }
             }
+            cobbler.Decorate(worldServer, chunkX, chunkZ, random);
+        }
+        else if (logNonServer)
+        {
+            GeoStrataLayerGen.info("Non-server world received!");
+            logNonServer = false;
         }
         // TODO Implement as a map of layers? For a given x & z, generate
     }
